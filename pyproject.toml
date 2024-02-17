@@ -4,9 +4,6 @@ version = "0.1.0"
 description = ""
 authors = ["alex <alexander.smehnov@gmail.com>"]
 readme = "README.md"
-packages = [
-    { include = "mb-cli" },
-]
 
 [tool.poetry.dependencies]
 python = "^3.8"
