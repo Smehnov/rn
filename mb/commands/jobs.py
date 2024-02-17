@@ -4,7 +4,7 @@ import requests
 from rich import print
 from rich.console import Console
 from rich.table import Table
-from settings import API_URL, API_TOKEN, ORGANIZATION_ID
+from mb.settings import API_URL, API_TOKEN, ORGANIZATION_ID
 
 
 app = typer.Typer()

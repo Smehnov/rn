@@ -1,5 +1,5 @@
 import typer
-from commands import robots, jobs
+from mb.commands import robots, jobs
 
 
 app = typer.Typer()
