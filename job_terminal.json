@@ -1,0 +1,1 @@
+{"image":"alpine:3", "custom_cmd": "sh", "container_name":"","ports":[],"network_mode":"default","volumes":[],"privileged":false,"env":[]}

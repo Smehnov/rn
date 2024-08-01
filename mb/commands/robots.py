@@ -19,6 +19,10 @@ def list():
         table.add_row(robot['id'], robot['name'], robot['description'], robot['status'], robot['api_key'])
     console.print(table)
 
+@app.command()
+def get(robot_id: str):
+    robot = requests.post(API_URL + '/robots.get', json={'organizationId': ORGANIZATION_ID, 'robotId': robot_id}, headers={'authorization': API_TOKEN}).json()
+    print(robot)
 
 if __name__ == "__main__":
     app()
