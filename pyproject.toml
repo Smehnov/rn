@@ -1,6 +1,6 @@
 [tool.poetry]
-name = "mb-cli"
-version = "0.1.1"
+name = "rn-cli"
+version = "0.1.2"
 description = ""
 authors = ["alex <alexander.smehnov@gmail.com>"]
 readme = "README.md"
