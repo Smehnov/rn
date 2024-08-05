@@ -29,8 +29,14 @@ class Agent:
     def wait(self):
         while self.wait_message:
             time.sleep(0.1)
+    def identify_robot_peer_id(self, robot_id: str):
+       robots = self.get_robots()
+       name_to_peer_id = dict([[robot['name'], robot['robot_peer_id']] for robot in robots])
+       return name_to_peer_id.get(robot_id, robot_id)
 
     def send_request(self, action, content={}, to=""):
+        if to:
+            to = self.identify_robot_peer_id(to)
         client = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
         client.connect(os.path.realpath(self.socket_path))
         message = {"action": action}
@@ -83,14 +89,14 @@ class Agent:
         receive_thread.daemon = True
         receive_thread.start()
         print('receiver started')
+
     def send_job_message(self, robot_peer_id, job_id, content):
        self.send_request("/send_message", {
                 "type": "JobMessage",
                 "job_id": job_id,
                 "content": content
-       }, robot_peer_id
+       }, robot_peer_id) 
 
-       ) 
     def start_tunnel_to_job(self, robot_peer_id, job_id, self_peer_id):
         self.start_receiving()
         self.robot_peer_id = robot_peer_id
@@ -141,6 +147,10 @@ class Agent:
     def list_jobs(self, robot_peer_id):
         jobs = self.message_request("ListJobs",{}, robot_peer_id)['jobs']
         return jobs
+    
+    def get_robots(self):
+        data = self.send_request('/local_robots')
+        return data.get('robots', []).values()
  
 
     def start_terminal_session(self, robot_peer_id:str, job_id: str):

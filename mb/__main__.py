@@ -5,6 +5,7 @@ from mb.settings import AGENT_SOCKET_PATH
 app = typer.Typer()
 if AGENT_SOCKET_PATH:
     app.add_typer(jobs.agent_app, name="jobs")
+    app.add_typer(robots.agent_app, name="robots")
 else:
     app.add_typer(robots.app, name="robots")
     app.add_typer(jobs.app, name="jobs")
