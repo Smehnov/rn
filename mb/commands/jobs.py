@@ -10,6 +10,7 @@ from rich.console import Console
 from rich.table import Table
 from mb.settings import API_URL, API_TOKEN, ORGANIZATION_ID, AGENT_SOCKET_PATH
 from mb.client import start_terminal_session, transfer_tar
+from rich.table import Table
 from mb.agent import Agent
 import uuid
 
@@ -28,6 +29,15 @@ def add(args_path, robot_peer_id):
     agent.start_job(robot_peer_id, job_id, 'docker-container-launch', args)
     print("Preparing job: ", job_id)
     print("Requests sent")
+
+@agent_app.command()
+def list(robot_peer_id):
+    agent = Agent(AGENT_SOCKET_PATH)
+    jobs = agent.list_jobs(robot_peer_id)
+    table = Table("Job Id", "Job Type", "Status")
+    for job in jobs:
+        table.add_row(job['job_id'], job['job_type'], job['status'])
+    print(table)
 
 @agent_app.command()
 def terminal(robot_peer_id, job_id):

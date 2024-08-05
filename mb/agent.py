@@ -14,13 +14,21 @@ from mb.settings import AGENT_SOCKET_PATH
 def handler(signum, frame):
     pass
 
+class MessageResponse:
+    def __init__(self):
+        pass
 
 class Agent:
     subscribed_functions = []
 
 
     def __init__(self, socket_path ):
+        self.wait_message = False
         self.socket_path = socket_path
+    
+    def wait(self):
+        while self.wait_message:
+            time.sleep(0.1)
 
     def send_request(self, action, content={}, to=""):
         client = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
@@ -55,7 +63,7 @@ class Agent:
     def receive_messages(self, socket):
         while True:
             time.sleep(0.05)
-            response = socket.recv(2048).decode()
+            response = socket.recv(65536).decode()
             if response:
                 self.notify_subscribers(response)
 
@@ -73,9 +81,8 @@ class Agent:
 
         receive_thread = threading.Thread(target=self.receive_messages, args=(client,))
         receive_thread.daemon = True
-        print('ready to start thread')
         receive_thread.start()
-        print('thread started')
+        print('receiver started')
     def send_job_message(self, robot_peer_id, job_id, content):
        self.send_request("/send_message", {
                 "type": "JobMessage",
@@ -110,6 +117,31 @@ class Agent:
             "status": "pending",
             "args": json.dumps(job_args)
         }, robot_peer_id)
+    
+    def message_request(self, request_type, request_data, robot_peer_id):
+        self.start_receiving()
+        self.wait_message = True
+        message_response = MessageResponse()
+        @self.subscribe()
+        def got_message(data):
+            if data.get('response_type')==request_type:
+                message_response.data = data
+                self.wait_message = False
+        self.send_request('/send_message', {
+            "type": "MessageRequest",
+            "request_type": request_type,
+            **request_data
+
+        }, robot_peer_id)
+        self.wait()
+        return message_response.data
+
+
+
+    def list_jobs(self, robot_peer_id):
+        jobs = self.message_request("ListJobs",{}, robot_peer_id)['jobs']
+        return jobs
+ 
 
     def start_terminal_session(self, robot_peer_id:str, job_id: str):
 
