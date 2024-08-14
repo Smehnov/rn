@@ -9,7 +9,9 @@ import signal
 import readchar
 import traceback
 import re
-from mb.settings import AGENT_SOCKET_PATH
+from mb.settings import AGENT_SOCKET_PATH, USER_KEY_PATH
+from mb.crypto import generate_key, get_key_bytes, get_base_64, get_peer_id, read_private_key
+import time
 
 def handler(signum, frame):
     pass
@@ -25,7 +27,13 @@ class Agent:
     def __init__(self, socket_path ):
         self.wait_message = False
         self.socket_path = socket_path
-    
+        self.private_key = read_private_key(USER_KEY_PATH)
+        sk, pk = get_key_bytes(self.private_key)
+        self.pk = pk
+        self.peer_id = get_peer_id(self.pk)
+        self.agent_peer_id = self.send_request('/local_robots')['self_peer_id']
+
+
     def wait(self):
         while self.wait_message:
             time.sleep(0.1)
@@ -34,7 +42,7 @@ class Agent:
        name_to_peer_id = dict([[robot['name'], robot['robot_peer_id']] for robot in robots])
        return name_to_peer_id.get(robot_id, robot_id)
 
-    def send_request(self, action, content={}, to=""):
+    def send_request(self, action, content={}, to="", signed_message={}):
         if to:
             to = self.identify_robot_peer_id(to)
         client = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
@@ -45,6 +53,9 @@ class Agent:
                 "content": content, 
                 "to": to 
             }
+        if signed_message:
+            message["signed_message"] = signed_message
+            
         client.sendall(json.dumps(message).encode())
         response = client.recv(65536).decode()
         client.close()
@@ -58,6 +69,8 @@ class Agent:
                 objs = json.loads(message)
 
                 for obj in objs:
+                    if 'message' in obj:
+                        obj = json.loads(obj['message'])
                     try:
                         func(obj)
                         
@@ -89,24 +102,51 @@ class Agent:
         receive_thread.daemon = True
         receive_thread.start()
         print('receiver started')
+    def send_signed_message(self, message:dict):
+        message_str = json.dumps(message, separators=(',', ':'))
+        sign = self.private_key.sign(message_str.encode('utf-8'))
+        self.send_request('/send_signed_message',signed_message={
+            "sign": [x for x in sign],
+            "public_key": [x for x in self.pk],
+            "message": message_str
+        })
+    
+    def prepare_message(self, content, to=None):
+        message = {
+            "timestamp": str(int(time.time())),
+            "content": content,
+            "from": self.agent_peer_id,
+            "to": self.identify_robot_peer_id(to) 
+        }
+        return message
 
+    def publish_config(self, config):
+        message = self.prepare_message({
+            "type": "UpdateConfig",
+            "config": config,
+        })
+        self.send_signed_message(message)
+    
     def send_job_message(self, robot_peer_id, job_id, content):
-       self.send_request("/send_message", {
-                "type": "JobMessage",
-                "job_id": job_id,
-                "content": content
-       }, robot_peer_id) 
+        message = self.prepare_message({
+            "type": "JobMessage",
+            "job_id": job_id,
+            "content": content
+        }, robot_peer_id)
+        self.send_signed_message(message)
 
     def start_tunnel_to_job(self, robot_peer_id, job_id, self_peer_id):
         self.start_receiving()
         self.robot_peer_id = robot_peer_id
         self.job_id = job_id
         self.self_peer_id = self_peer_id
-        self.send_request("/send_message", {
+        
+        message = self.prepare_message({
                 "type": "StartTunnelReq",
                 "job_id": job_id,
                 "peer_id": self_peer_id
-        }, robot_peer_id) 
+        }, robot_peer_id)
+        self.send_signed_message(message) 
 
     def send_terminal_command(self, command):
         self.send_job_message(self.robot_peer_id, self.job_id,
@@ -115,30 +155,35 @@ class Agent:
                 "stdin": command 
             })
     def start_job(self, robot_peer_id, job_id, job_type, job_args):
-        self.send_request('/send_message', {
+        message = self.prepare_message({
+            "type": "StartJob",
             "id": job_id,
             "robot_id": robot_peer_id,
-            "type": "StartJob",
             "job_type": job_type,#"docker-container-launch",
             "status": "pending",
             "args": json.dumps(job_args)
         }, robot_peer_id)
+        self.send_signed_message(message)
     
     def message_request(self, request_type, request_data, robot_peer_id):
         self.start_receiving()
         self.wait_message = True
         message_response = MessageResponse()
+        peer_id = self.identify_robot_peer_id(robot_peer_id)
         @self.subscribe()
-        def got_message(data):
-            if data.get('response_type')==request_type:
-                message_response.data = data
+        def got_message(message):
+            content = message.get('content') or {}
+            if message.get('from')!=peer_id:
+                return
+            if content.get('response_type')==request_type:
+                message_response.data = message['content']
                 self.wait_message = False
-        self.send_request('/send_message', {
+        message = self.prepare_message({
             "type": "MessageRequest",
             "request_type": request_type,
             **request_data
-
         }, robot_peer_id)
+        self.send_signed_message(message)
         self.wait()
         return message_response.data
 
@@ -155,17 +200,23 @@ class Agent:
 
     def start_terminal_session(self, robot_peer_id:str, job_id: str):
 
+        peer_id = self.identify_robot_peer_id(robot_peer_id)
         @self.subscribe()
-        def got_message(data):
-            if self.channel_mode=='Terminal' and 'message' in data:
-                content = data['message'].get('TerminalMessage')
-                if content not in ['\x1b[6n', None]:
-                    sys.stdout.write(content)
-                    sys.stdout.flush()
+        def got_message(message):
+            content = message.get('content') or {}
+            if message.get('from')!=peer_id:
+                return
+            
+            if content.get('type')=='TunnelResponseMessage' and 'message' in content:
+                message = content['message']
+                if self.channel_mode=='Terminal':
+                    content = message.get('TerminalMessage')
+                    if content not in ['\x1b[6n', None]:
+                        sys.stdout.write(content)
+                        sys.stdout.flush()
 
         self.channel_mode = "Terminal"
         local_devices = self.send_request("/local_robots")
-        pprint.pprint(local_devices)
         self.start_tunnel_to_job(robot_peer_id, job_id, local_devices['self_peer_id'])
 
         print("===TERMINAL SESSION STARTED===")

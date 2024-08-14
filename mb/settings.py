@@ -1,6 +1,6 @@
 import os
 
-
+USER_KEY_PATH="owner.key"
 API_URL = os.environ.get('MERKLEBOT_API_URL', "https://app.merklebot.com/api/api")
 ROBOT_SERVER_URL = os.environ.get('MERKLEBOT_ROBOT_SERVER_URL', "https://robots.merklebot.com")
 AGENT_SOCKET_PATH = os.environ.get('AGENT_SOCKET_PATH', None)
