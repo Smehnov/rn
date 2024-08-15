@@ -9,7 +9,7 @@ import signal
 import readchar
 import traceback
 import re
-from mb.settings import AGENT_SOCKET_PATH, USER_KEY_PATH
+from mb.settings import AGENT_SOCKET_PATH, USER_KEY_PATH, TERMINAL_KEYPRESS_DELAY
 from mb.crypto import generate_key, get_key_bytes, get_base_64, get_peer_id, read_private_key
 import time
 
@@ -32,6 +32,7 @@ class Agent:
         self.pk = pk
         self.peer_id = get_peer_id(self.pk)
         self.agent_peer_id = self.send_request('/local_robots')['self_peer_id']
+        self.terminal_messages_queue = []
 
 
     def wait(self):
@@ -102,6 +103,23 @@ class Agent:
         receive_thread.daemon = True
         receive_thread.start()
         print('receiver started')
+
+    def send_terminal_messages(self):
+        last_send_time = time.time()
+        message_to_send = ""
+        while True:
+            time.sleep(TERMINAL_KEYPRESS_DELAY)
+            while len(self.terminal_messages_queue)>0:
+                message_to_send+=self.terminal_messages_queue.pop(0)
+            if len(message_to_send)>0:
+                self.send_terminal_command(message_to_send)
+                message_to_send = ""
+            
+    def start_terminal_sender(self):
+        terminal_thread = threading.Thread(target=self.send_terminal_messages, args=())
+        terminal_thread.daemon = True
+        terminal_thread.start()
+    
     def send_signed_message(self, message:dict):
         message_str = json.dumps(message, separators=(',', ':'))
         sign = self.private_key.sign(message_str.encode('utf-8'))
@@ -223,14 +241,16 @@ class Agent:
         signal.signal(signal.SIGINT, handler)
         time.sleep(1)
         self.send_terminal_command('\n\r')
+        self.start_terminal_sender()
+        time.sleep(0.1)
         while True:
             key = readchar.readchar()
             # check Crtl+D
             if key in ['\x04']:
                 print('===EXIT TERMINAL SESSION===')
                 exit(0)
-            
-            self.send_terminal_command(key)
+            self.terminal_messages_queue.append(key)
+            #self.send_terminal_command(key)
 
 
 
