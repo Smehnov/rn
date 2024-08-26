@@ -4,7 +4,6 @@ from rich import print
 from rich.console import Console
 from rich.table import Table
 from mb.agent import Agent
-from mb.settings import AGENT_SOCKET_PATH
 
 
 app = typer.Typer()
@@ -15,7 +14,7 @@ console = Console()
 
 @agent_app.command()
 def list():
-    agent = Agent(AGENT_SOCKET_PATH) 
+    agent = Agent() 
     robots = agent.get_robots()
     table = Table("PeerId", "Name", "Status")
     for robot in robots:

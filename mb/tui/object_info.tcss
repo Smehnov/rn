@@ -3,7 +3,14 @@ Screen {
 }
 
 #list_column {
-    width: 30%;
+    width: 20%;
+    border: solid blue;
+    min-width: 35;
+    align-horizontal: center;
+}
+
+#user_list_column{
+    width: 20%;
     border: solid blue;
     min-width: 35;
     align-horizontal: center;
@@ -30,7 +37,10 @@ Screen {
     width: 100%;
     align-horizontal: center;
 }
-
+#add_user_button {
+    width: 100%;
+    align-horizontal: center;
+}
 #list_of_robots_center_label {
     border-bottom: solid red;
     border-top: solid red;

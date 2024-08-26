@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "rn-cli"
-version = "0.1.6"
+version = "0.1.7"
 description = ""
 authors = ["alex <alexander.smehnov@gmail.com>"]
 readme = "README.md"
@@ -24,6 +24,7 @@ cryptography = "^43.0.0"
 pylint = "^3.2.6"
 textual = "^0.75.1"
 base58 = "^2.1.1"
+websockets = "^13.0"
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"

@@ -1,4 +1,5 @@
 import socket
+from websockets.sync.client import connect as ws_connect
 import os
 import json
 import pprint
@@ -9,7 +10,7 @@ import signal
 import readchar
 import traceback
 import re
-from mb.settings import AGENT_SOCKET_PATH, USER_KEY_PATH, TERMINAL_KEYPRESS_DELAY
+from mb.settings import AGENT_SOCKET_PATH, USER_KEY_PATH, TERMINAL_KEYPRESS_DELAY, AGENT_RPC, OWNER_KEY
 from mb.crypto import generate_key, get_key_bytes, get_base_64, get_peer_id, read_private_key
 import time
 
@@ -24,14 +25,14 @@ class Agent:
     subscribed_functions = []
 
 
-    def __init__(self, socket_path ):
+    def __init__(self):
         self.wait_message = False
-        self.socket_path = socket_path
+        self.socket_path = AGENT_SOCKET_PATH 
+        self.rpc_url = AGENT_RPC
         self.private_key = read_private_key(USER_KEY_PATH)
         sk, pk = get_key_bytes(self.private_key)
         self.pk = pk
         self.peer_id = get_peer_id(self.pk)
-        self.agent_peer_id = self.send_request('/local_robots')['self_peer_id']
         self.terminal_messages_queue = []
 
 
@@ -43,11 +44,9 @@ class Agent:
        name_to_peer_id = dict([[robot['name'], robot['robot_peer_id']] for robot in robots])
        return name_to_peer_id.get(robot_id, robot_id)
 
-    def send_request(self, action, content={}, to="", signed_message={}):
+    def send_request(self, action, content={}, to="", signed_message={}, action_param=None):
         if to:
             to = self.identify_robot_peer_id(to)
-        client = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-        client.connect(os.path.realpath(self.socket_path))
         message = {"action": action}
         if content:
             message["content"] = {
@@ -56,10 +55,21 @@ class Agent:
             }
         if signed_message:
             message["signed_message"] = signed_message
-            
-        client.sendall(json.dumps(message).encode())
-        response = client.recv(65536).decode()
-        client.close()
+        
+        if action_param:
+            message["action_param"] = action_param
+        response = ""
+        if self.rpc_url:
+            websocket = ws_connect(self.rpc_url)
+            websocket.send(json.dumps(message))
+            response = websocket.recv()
+        elif self.socket_path:        
+            client = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+            client.connect(os.path.realpath(self.socket_path))
+    
+            client.sendall(json.dumps(message).encode())
+            response = client.recv(65536).decode()
+            client.close()
         return json.loads(response)
 
     def notify_subscribers(self, message):
@@ -83,7 +93,11 @@ class Agent:
     def receive_messages(self, socket):
         while True:
             time.sleep(0.05)
-            response = socket.recv(65536).decode()
+            response = ""
+            if self.rpc_url:
+                response = socket.recv()
+            elif self.socket_path:
+                response = socket.recv(65536).decode()
             if response:
                 self.notify_subscribers(response)
 
@@ -95,9 +109,15 @@ class Agent:
  
 
     def start_receiving(self):
-        client = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-        client.connect(os.path.realpath(self.socket_path))
-        client.sendall(json.dumps({"action": "/subscribe_messages"}).encode())
+        client = None
+        msg = json.dumps({"action": "/subscribe_messages", "action_param": self.peer_id})
+        if self.rpc_url:
+            client = ws_connect(self.rpc_url)
+            client.send(msg)
+        elif self.socket_path:
+            client = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+            client.connect(os.path.realpath(self.socket_path))
+            client.sendall(msg).encode()
 
         receive_thread = threading.Thread(target=self.receive_messages, args=(client,))
         receive_thread.daemon = True
@@ -133,7 +153,7 @@ class Agent:
         message = {
             "timestamp": str(int(time.time())),
             "content": content,
-            "from": self.agent_peer_id,
+            "from": self.peer_id,
             "to": self.identify_robot_peer_id(to) 
         }
         return message
@@ -190,7 +210,7 @@ class Agent:
         peer_id = self.identify_robot_peer_id(robot_peer_id)
         @self.subscribe()
         def got_message(message):
-            content = message.get('content') or {}
+            content = message.get('content')
             if message.get('from')!=peer_id:
                 return
             if content.get('response_type')==request_type:
@@ -212,8 +232,12 @@ class Agent:
         return jobs
     
     def get_robots(self):
-        data = self.send_request('/local_robots')
-        return data.get('robots', []).values()
+        data = self.send_request('/config', action_param = OWNER_KEY)
+        if data.get('ok')==False:
+            print("Can't get robots list")
+            exit()
+        
+        return data.get('robots', [])
  
 
     def start_terminal_session(self, robot_peer_id:str, job_id: str):
@@ -234,8 +258,9 @@ class Agent:
                         sys.stdout.flush()
 
         self.channel_mode = "Terminal"
-        local_devices = self.send_request("/local_robots")
-        self.start_tunnel_to_job(robot_peer_id, job_id, local_devices['self_peer_id'])
+
+        config = self.send_request("/config", action_param = OWNER_KEY)
+        self.start_tunnel_to_job(robot_peer_id, job_id, self.peer_id)
 
         print("===TERMINAL SESSION STARTED===")
         signal.signal(signal.SIGINT, handler)
