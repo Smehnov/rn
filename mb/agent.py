@@ -40,9 +40,11 @@ class Agent:
         while self.wait_message:
             time.sleep(0.1)
     def identify_robot_peer_id(self, robot_id: str):
-       robots = self.get_robots()
-       name_to_peer_id = dict([[robot['name'], robot['robot_peer_id']] for robot in robots])
-       return name_to_peer_id.get(robot_id, robot_id)
+        if robot_id is None:
+            return None
+        robots = self.get_robots()
+        name_to_peer_id = dict([[robot['name'], robot['robot_peer_id']] for robot in robots])
+        return name_to_peer_id.get(robot_id, robot_id)
 
     def send_request(self, action, content={}, to="", signed_message={}, action_param=None):
         if to:
