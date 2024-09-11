@@ -11,7 +11,7 @@ import readchar
 import traceback
 import re
 from mb.settings import AGENT_SOCKET_PATH, USER_KEY_PATH, TERMINAL_KEYPRESS_DELAY, AGENT_RPC, OWNER_KEY
-from mb.crypto import generate_key, get_key_bytes, get_base_64, get_peer_id, read_private_key
+from mb.crypto import generate_key, get_key_bytes, get_base_64, get_peer_id, read_private_key, base64_to_bytes
 import time
 
 def handler(signum, frame):
@@ -42,9 +42,12 @@ class Agent:
     def identify_robot_peer_id(self, robot_id: str):
         if robot_id is None:
             return None
-        robots = self.get_robots()
+        config = self.get_config()
+        robots = config.get('robots', [])
+        users = config.get('users', [])
         name_to_peer_id = dict([[robot['name'], robot['robot_peer_id']] for robot in robots])
-        return name_to_peer_id.get(robot_id, robot_id)
+        name_to_peer_id_users = dict([[user['username'], get_peer_id(base64_to_bytes(user['public_key']))] for user in users])
+        return name_to_peer_id.get(robot_id, name_to_peer_id_users.get(robot_id, robot_id))
 
     def send_request(self, action, content={}, to="", signed_message={}, action_param=None):
         if to:
@@ -226,6 +229,13 @@ class Agent:
         self.send_signed_message(message)
         self.wait()
         return message_response.data
+    
+    def custom_message(self, message, robot_peer_id):
+       msg = self.prepare_message({
+           "type": "CustomMessage",
+           **message
+       }, robot_peer_id) 
+       self.send_signed_message(msg)
 
 
 
@@ -233,12 +243,16 @@ class Agent:
         jobs = self.message_request("ListJobs",{}, robot_peer_id)['jobs']
         return jobs
     
-    def get_robots(self):
+    def get_config(self):
         data = self.send_request('/config', action_param = OWNER_KEY)
         if data.get('ok')==False:
             print("Can't get robots list")
             exit()
         
+        return data
+ 
+    def get_robots(self):
+        data = self.get_config()
         return data.get('robots', [])
  
 
