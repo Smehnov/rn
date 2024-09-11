@@ -15,6 +15,8 @@ def gen(key_path):
     private_key = generate_key()
     private_key_base64, public_key_base64 = get_base_64(private_key)
     print("Public Key:", public_key_base64)
+    peer_id = get_peer_id(base64_to_bytes(public_key_base64))
+    print("PeerId:", peer_id)
     with open(key_path, 'w') as f:
         f.write(private_key_base64)
 
