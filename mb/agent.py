@@ -246,8 +246,7 @@ class Agent:
     def get_config(self):
         data = self.send_request('/config', action_param = OWNER_KEY)
         if data.get('ok')==False:
-            print("Can't get robots list")
-            exit()
+            return {"robots": [], "users": [], "version": 0}
         
         return data
  
