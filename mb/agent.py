@@ -10,7 +10,7 @@ import signal
 import readchar
 import traceback
 import re
-from mb.settings import AGENT_SOCKET_PATH, USER_KEY_PATH, TERMINAL_KEYPRESS_DELAY, AGENT_RPC, OWNER_KEY
+from mb.settings import TERMINAL_KEYPRESS_DELAY
 from mb.crypto import generate_key, get_key_bytes, get_base_64, get_peer_id, read_private_key, base64_to_bytes
 import time
 
@@ -25,7 +25,12 @@ class Agent:
     subscribed_functions = []
 
 
-    def __init__(self):
+    def __init__(self, USER_KEY_PATH, AGENT_RPC, AGENT_SOCKET_PATH, OWNER_KEY):
+        if AGENT_RPC is None and AGENT_SOCKET_PATH is None:
+            print("env not set: AGENT_RPC or AGENT_SOCKET_PATH")
+            exit()
+
+        self.OWNER_KEY = OWNER_KEY
         self.wait_message = False
         self.socket_path = AGENT_SOCKET_PATH 
         self.rpc_url = AGENT_RPC
@@ -244,7 +249,7 @@ class Agent:
         return jobs
     
     def get_config(self):
-        data = self.send_request('/config', action_param = OWNER_KEY)
+        data = self.send_request('/config', action_param = self.OWNER_KEY)
         if data.get('ok')==False:
             return {"robots": [], "users": [], "version": 0}
         
@@ -252,7 +257,7 @@ class Agent:
 
         
     def get_nework_info(self):
-        data = self.send_request('/network_info', action_param = OWNER_KEY)
+        data = self.send_request('/network_info', action_param = self.OWNER_KEY)
         if data.get('ok')==False:
             return {}
         
@@ -289,7 +294,7 @@ class Agent:
 
         self.channel_mode = "Terminal"
 
-        config = self.send_request("/config", action_param = OWNER_KEY)
+        config = self.send_request("/config", action_param = self.OWNER_KEY)
         self.start_tunnel_to_job(robot_peer_id, job_id, self.peer_id)
 
         print("===TERMINAL SESSION STARTED===")

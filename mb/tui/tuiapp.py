@@ -12,7 +12,7 @@ import json
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey, Ed25519PublicKey
 from cryptography.hazmat.primitives import serialization
 from mb.crypto import generate_key, get_key_bytes, get_base_64, get_peer_id, read_private_key
-from mb.settings import USER_KEY_PATH, AGENT_SOCKET_PATH
+from mb.settings import USER_KEY_PATH, AGENT_SOCKET_PATH, OWNER_KEY, AGENT_RPC
 from mb.agent import Agent
 
 
@@ -292,7 +292,7 @@ def start(config_path):
             config_str = json.dumps(config_obj)
             f.write(config_str)
 
-            agent = Agent()
+            agent = Agent(USER_KEY_PATH, AGENT_RPC, AGENT_SOCKET_PATH, OWNER_KEY)
             agent.publish_config(config_obj)
 
         

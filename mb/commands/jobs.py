@@ -10,6 +10,7 @@ from rich.console import Console
 from rich.table import Table
 from rich.table import Table
 from mb.agent import Agent
+from mb.settings import AGENT_RPC, USER_KEY_PATH, OWNER_KEY, AGENT_SOCKET_PATH
 import uuid
 
 agent_app = typer.Typer()
@@ -20,7 +21,7 @@ console = Console()
 @agent_app.command()
 def add(args_path, robot_peer_id):
     # TODO: send jobs to lot of robots
-    agent = Agent()
+    agent = Agent(USER_KEY_PATH, AGENT_RPC, AGENT_SOCKET_PATH, OWNER_KEY)
     args = json.load(open(args_path, 'r'))
     job_id = str(uuid.uuid4())
     agent.start_job(robot_peer_id, job_id, 'docker-container-launch', args)
@@ -29,7 +30,8 @@ def add(args_path, robot_peer_id):
 
 @agent_app.command()
 def list(robot_peer_id):
-    agent = Agent()
+    agent = Agent(USER_KEY_PATH, AGENT_RPC, AGENT_SOCKET_PATH, OWNER_KEY)
+
     jobs = agent.list_jobs(robot_peer_id)
     table = Table("Job Id", "Job Type", "Status")
     for job in jobs:
@@ -38,7 +40,7 @@ def list(robot_peer_id):
 
 @agent_app.command()
 def terminal(robot_peer_id, job_id):
-    agent = Agent()
+    agent = Agent(USER_KEY_PATH, AGENT_RPC, AGENT_SOCKET_PATH, OWNER_KEY)
     agent.start_terminal_session(robot_peer_id, job_id)
 
 # @app.command()

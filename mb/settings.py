@@ -6,6 +6,3 @@ AGENT_SOCKET_PATH = os.environ.get('AGENT_SOCKET_PATH', None)
 AGENT_RPC = os.environ.get('AGENT_RPC', None)
 TERMINAL_KEYPRESS_DELAY = float(os.environ.get('TERMINAL_KEYPRESS_DELAY', 0.1))
 
-if AGENT_RPC is None and AGENT_SOCKET_PATH is None:
-    print("env not set: AGENT_PRC")
-    exit()

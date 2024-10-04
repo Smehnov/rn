@@ -4,6 +4,7 @@ from rich import print
 from rich.console import Console
 from rich.table import Table
 from mb.agent import Agent
+from mb.settings import OWNER_KEY, AGENT_RPC, USER_KEY_PATH, AGENT_SOCKET_PATH
 import time
 
 
@@ -15,7 +16,7 @@ console = Console()
 
 @agent_app.command()
 def list():
-    agent = Agent()
+    agent = Agent(USER_KEY_PATH, AGENT_RPC, AGENT_SOCKET_PATH, OWNER_KEY)
     robots = agent.get_robots()
     table = Table("PeerId", "Name", "Status")
     for robot in robots:
@@ -24,13 +25,13 @@ def list():
 
 @agent_app.command()
 def echo(robot_peer_id:str, message: str):
-    agent = Agent()
+    agent = Agent(USER_KEY_PATH, AGENT_RPC, AGENT_SOCKET_PATH, OWNER_KEY)
     for i in range(100):
         agent.custom_message({'msg': message}, robot_peer_id)
    
 @agent_app.command()
 def listen():
-    agent = Agent()
+    agent = Agent(USER_KEY_PATH, AGENT_RPC, None, OWNER_KEY)
     @agent.subscribe()
     def got_message(message):
         print(message)
