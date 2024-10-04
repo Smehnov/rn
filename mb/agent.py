@@ -249,10 +249,25 @@ class Agent:
             return {"robots": [], "users": [], "version": 0}
         
         return data
+
+        
+    def get_nework_info(self):
+        data = self.send_request('/network_info', action_param = OWNER_KEY)
+        if data.get('ok')==False:
+            return {}
+        
+        return data
+    
  
     def get_robots(self):
         data = self.get_config()
-        return data.get('robots', [])
+        network_info = self.get_nework_info()
+        print('network', network_info)
+        robots = data.get('robots', [])
+        for i in range(len(robots)):
+            peer_id = robots[i]['robot_peer_id']
+            robots[i]['status'] = 'Online' if network_info.get(peer_id, {}).get('is_online') else 'Unknown'
+        return robots
  
 
     def start_terminal_session(self, robot_peer_id:str, job_id: str):

@@ -19,7 +19,7 @@ def list():
     robots = agent.get_robots()
     table = Table("PeerId", "Name", "Status")
     for robot in robots:
-        table.add_row(robot['robot_peer_id'], robot['name'], 'Unknown')
+        table.add_row(robot['robot_peer_id'], robot['name'], robot['status']) 
     console.print(table)
 
 @agent_app.command()
