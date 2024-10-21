@@ -24,6 +24,13 @@ def list():
     console.print(table)
 
 @agent_app.command()
+def config():
+    agent = Agent(USER_KEY_PATH, AGENT_RPC, AGENT_SOCKET_PATH, OWNER_KEY)
+    config = agent.get_config()
+    console.print(config)
+
+
+@agent_app.command()
 def echo(robot_peer_id:str, message: str):
     agent = Agent(USER_KEY_PATH, AGENT_RPC, AGENT_SOCKET_PATH, OWNER_KEY)
     for i in range(100):
