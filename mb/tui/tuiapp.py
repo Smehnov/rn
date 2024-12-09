@@ -8,6 +8,8 @@ from textual import on
 
 import base64
 import json
+import yaml
+
 
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey, Ed25519PublicKey
 from cryptography.hazmat.primitives import serialization
@@ -269,7 +271,7 @@ def start(config_path):
     owner_base64 = get_base_64(private_key, mode='pk')
     try:
         with open(config_path, 'r') as f:
-            config = json.load(f)
+            config = yaml.load(f)
         print(config)
         if 'users' not in config:
             config['users'] = []
@@ -289,8 +291,7 @@ def start(config_path):
                 "users": users
                 }
             print(config_obj)
-            config_str = json.dumps(config_obj)
-            f.write(config_str)
+            config_str = yaml.dump(config_obj, f)
 
             agent = Agent(USER_KEY_PATH, AGENT_RPC, AGENT_SOCKET_PATH, OWNER_KEY)
             agent.publish_config(config_obj)

@@ -29,8 +29,11 @@ def public(key_path):
     data = base64.b64decode(encoded)
     sk_data = data[:32]
     private_key = Ed25519PrivateKey.from_private_bytes(sk_data)
-    print('Public key:', get_base_64(private_key ,mode='pk'))
-
+    public_key_base64 = get_base_64(private_key ,mode='pk');
+    print('Public key:', public_key_base64)
+    peer_id = get_peer_id(base64_to_bytes(public_key_base64))
+    print("PeerId:", peer_id)
+ 
 @agent_app.command()
 def update_config(key_path, config_path):
     data = None

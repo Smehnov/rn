@@ -11,7 +11,7 @@ import readchar
 import traceback
 import re
 from mb.settings import TERMINAL_KEYPRESS_DELAY
-from mb.crypto import generate_key, get_key_bytes, get_base_64, get_peer_id, read_private_key, base64_to_bytes
+from mb.crypto import generate_key, get_key_bytes, get_base_64, get_peer_id, read_private_key, base64_to_bytes, decrypt_message
 import time
 
 def handler(signum, frame):
@@ -37,6 +37,7 @@ class Agent:
         self.private_key = read_private_key(USER_KEY_PATH)
         sk, pk = get_key_bytes(self.private_key)
         self.pk = pk
+        self.sk = sk
         self.peer_id = get_peer_id(self.pk)
         self.terminal_messages_queue = []
 
@@ -90,8 +91,14 @@ class Agent:
                 objs = json.loads(message)
 
                 for obj in objs:
+                    print(obj)
                     if 'message' in obj:
+                        if obj.get('encryption'):
+                            obj = decrypt_message(obj, self.sk)
+
+
                         obj = json.loads(obj['message'])
+                        
                     try:
                         func(obj)
                         
@@ -155,6 +162,7 @@ class Agent:
         sign = self.private_key.sign(message_str.encode('utf-8'))
         self.send_request('/send_signed_message',signed_message={
             "sign": [x for x in sign],
+            "to": message.get('to'),
             "public_key": [x for x in self.pk],
             "message": message_str
         })
@@ -274,6 +282,10 @@ class Agent:
             robots[i]['status'] = 'Online' if network_info.get(peer_id, {}).get('is_online') else 'Unknown'
         return robots
  
+    def job_info(self, robot_peer_id: str, job_id: str):
+        job_info = self.message_request("JobInfo", {"job_id": job_id}, robot_peer_id)
+        return job_info
+
 
     def start_terminal_session(self, robot_peer_id:str, job_id: str):
 
