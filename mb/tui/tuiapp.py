@@ -271,7 +271,7 @@ def start(config_path):
     owner_base64 = get_base_64(private_key, mode='pk')
     try:
         with open(config_path, 'r') as f:
-            config = yaml.load(f)
+            config = yaml.safe_load(f)
         print(config)
         if 'users' not in config:
             config['users'] = []
